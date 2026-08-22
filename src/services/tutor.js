@@ -1,0 +1,123 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+export async function chatWithTutor(geminiKey, ollamaUrl, ollamaModel, history, currentCode, currentLanguage, userProficiency) {
+  const useGemini = Boolean(geminiKey && geminiKey.trim().length > 0);
+
+  let adaptiveInstructions = "";
+  if (userProficiency === "Beginner") {
+    adaptiveInstructions = `
+[ADAPTIVE PERSONA: BEGINNER]
+The user is a complete beginner in ${currentLanguage}.
+- Focus on reviewing basic concepts (variables, loops, logic) before giving solutions.
+- Break tasks down into extremely small, bite-sized steps (like freeCodeCamp).
+- Heavily explain the "why" and "how" using simple analogies.
+- Encourage them constantly.
+    `;
+  } else if (userProficiency === "Intermediate") {
+    adaptiveInstructions = `
+[ADAPTIVE PERSONA: INTERMEDIATE]
+The user is intermediate in ${currentLanguage}.
+- Skip syntax basics. Focus on logic, architecture, and debugging strategies.
+- Point them to the right logical flow, but make them write the implementation.
+    `;
+  } else {
+    adaptiveInstructions = `
+[ADAPTIVE PERSONA: ADVANCED]
+The user is advanced in ${currentLanguage}.
+- Skip all basics. 
+- Immediately discuss deep architecture, performance optimizations, and edge cases.
+- Be concise and strict.
+    `;
+  }
+
+  const prompt = `
+You are an expert Socratic computer science tutor. 
+Your goal is to teach the user and guide them to the answer, NEVER giving them the direct code to copy-paste.
+Ask leading questions, give hints, and encourage the user to write the code themselves.
+
+${adaptiveInstructions}
+
+CRITICAL INSTRUCTIONS for Response Format:
+You must reply strictly with a JSON object. You have two modes:
+
+MODE 1: COURSE CREATION (If the user asks to build something large/complex)
+If the user's request requires learning multiple concepts (e.g., "Build a movement script"), you must set "isCourse" to true, and provide a list of "concepts" you need to teach them. 
+
+MODE 2: TEACHING / QUICK HELP (If they ask a specific question or you are currently teaching a step)
+If you are teaching a specific concept, you can spawn a "sandbox" file to show them demo code. 
+You must also use the "inlineWidget" to interactively guide them.
+
+JSON SCHEMA:
+{
+  "message": "Your text response to the user. (Use markdown)",
+  "isCourse": true or false,
+  "concepts": ["List", "Of", "Concepts"] // ONLY if isCourse is true and you are starting a new course
+  "sandboxFile": "lesson_dictionaries.cs", // Optional: If you want to open a new scratch file to teach a concept
+  "sandboxCode": "using System; ...", // Optional: The initial code for the sandbox file
+  "walkthroughSteps": [ // ONLY if you provide a sandboxFile. This is the line-by-line guided tour!
+    { "line": 1, "text": "This line imports the library." },
+    { "line": 3, "text": "This is your main class." }
+  ],
+  "highlight": [5, 5], // Optional: Line number array to highlight [start, end]
+  "inlineWidget": { // Optional: An interactive purple box to teach the user in their MAIN code
+    "line": 5, // Line to attach to
+    "text": "Click here to learn about dictionaries!",
+    "demoCode": "Dictionary<string, int> scores = new Dictionary<string, int>();", // Explains the concept when clicked
+    "ghostText": "Dictionary<string, int> scores =" // Grey text that the user MUST manually trace/type over
+  }
+}
+
+Return ONLY the JSON object. Do not wrap in markdown tags if possible.
+
+Here is the code currently open in the student's editor (Language: ${currentLanguage}):
+
+--- CURRENT CODE ---
+${currentCode}
+--- END CODE ---
+
+Here is the conversation history:
+${history.slice(0, -1).map(m => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.content}`).join('\n')}
+
+Student's newest message: "${history[history.length - 1].content}"
+`;
+
+  if (useGemini) {
+    try {
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent(prompt);
+      let text = result.response.text();
+      return parseJson(text);
+    } catch (error) {
+      console.warn("Gemini API failed or key is invalid, falling back to Cloudflare AI...", error);
+      return await useCloudflareAI(prompt);
+    }
+  } else {
+    // If no key provided, default directly to Cloudflare AI
+    return await useCloudflareAI(prompt);
+  }
+}
+
+async function useCloudflareAI(prompt) {
+  const response = await fetch('/api/tutor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: prompt }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Cloudflare AI API error: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return parseJson(data.response);
+}
+
+
+function parseJson(text) {
+  let clean = text.trim();
+  if (clean.startsWith("\`\`\`json")) clean = clean.substring(7);
+  if (clean.startsWith("\`\`\`")) clean = clean.substring(3);
+  if (clean.endsWith("\`\`\`")) clean = clean.slice(0, -3);
+  return JSON.parse(clean.trim());
+}

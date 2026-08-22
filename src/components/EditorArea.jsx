@@ -1,0 +1,384 @@
+import React, { useRef, useEffect } from 'react';
+import { Layout, Model, Actions, DockLocation } from 'flexlayout-react';
+import 'flexlayout-react/style/dark.css';
+import Editor from '@monaco-editor/react';
+import { Columns, CheckCircle } from 'lucide-react';
+import TutorPanel from './TutorPanel';
+
+const initialLayout = {
+  global: {
+    tabEnableClose: true,
+    tabEnableRename: false,
+    tabSetEnableMaximize: false,
+    splitterSize: 4,
+  },
+  borders: [],
+  layout: {
+    type: "row",
+    weight: 100,
+    children: [
+      {
+        type: "tabset",
+        weight: 100,
+        id: "main",
+        children: [
+          {
+            type: "tab",
+            component: "file",
+            id: "1",
+            name: "algorithm.py",
+          }
+        ]
+      }
+    ]
+  }
+};
+
+export default function EditorArea({ 
+  files, 
+  activeFileId,
+  onActiveFileChange,
+  onCodeChange, 
+  translations, 
+  latestTranslationId,
+  onTranslate,
+  tutorMessages,
+  onTutorMessage,
+  isTutorLoading,
+  tutorCommands,
+  tutorOpenTrigger,
+  onWalkthroughNext
+}) {
+  const [model] = React.useState(() => Model.fromJson(initialLayout));
+  const layoutRef = useRef(null);
+
+  // Store Monaco references to interact with decorations/view zones
+  const editorRefs = useRef({});
+  const activeDecorations = useRef({}); 
+  const activeViewZones = useRef({});
+
+  const handleEditorDidMount = (fileId, editor, monaco) => {
+    editorRefs.current[fileId] = { editor, monaco };
+  };
+
+  // Sync active file from sidebar to FlexLayout
+  useEffect(() => {
+    if (!activeFileId || !layoutRef.current) return;
+    
+    const file = files.find(f => f.id === activeFileId);
+    if (!file) return;
+
+    const existingNode = model.getNodeById(file.id);
+    if (existingNode) {
+      model.doAction(Actions.selectTab(existingNode.getId()));
+    } else {
+      const activeTabset = model.getActiveTabset();
+      if (activeTabset) {
+         model.doAction(Actions.addNode({
+            type: "tab",
+            component: "file",
+            id: file.id,
+            name: file.name,
+          }, activeTabset.getId(), DockLocation.CENTER, -1));
+      }
+    }
+  }, [activeFileId, files, model]);
+
+  // Sync translation results to a new tab
+  useEffect(() => {
+    if (!latestTranslationId || !layoutRef.current) return;
+
+    const transTabId = latestTranslationId;
+    const existingNode = model.getNodeById(transTabId);
+    const transData = translations[transTabId];
+    
+    if (!existingNode && transData) {
+       const activeTabset = model.getActiveTabset();
+       if (activeTabset) {
+         model.doAction(Actions.addNode({
+           type: "tab",
+           component: "translation",
+           id: transTabId,
+           name: `${transData.fileName} ➔ ${transData.targetLanguage}`,
+         }, activeTabset.getId(), DockLocation.RIGHT, -1));
+       }
+    } else if (existingNode) {
+       model.doAction(Actions.selectTab(existingNode.getId()));
+    }
+  }, [latestTranslationId, model, translations]);
+
+  // Sync Tutor panel
+  useEffect(() => {
+    if (tutorOpenTrigger === 0 || !layoutRef.current) return;
+    const tabId = "tutor-panel";
+    const existingNode = model.getNodeById(tabId);
+    
+    if (!existingNode) {
+       const activeTabset = model.getActiveTabset();
+       if (activeTabset) {
+         model.doAction(Actions.addNode({
+           type: "tab",
+           component: "tutor-panel",
+           id: tabId,
+           name: "AI Tutor",
+         }, activeTabset.getId(), DockLocation.RIGHT, -1));
+       }
+    } else {
+       model.doAction(Actions.selectTab(existingNode.getId()));
+    }
+  }, [tutorOpenTrigger, model]);
+
+  // Handle Tutor Editor Interactions (Decorations & View Zones)
+  useEffect(() => {
+    if (!tutorCommands || !activeFileId) return;
+    
+    const editorObj = editorRefs.current[activeFileId];
+    if (!editorObj) return;
+
+    const { editor, monaco } = editorObj;
+
+    // Clear previous decorations/zones for this file
+    if (activeDecorations.current[activeFileId]) {
+      editor.deltaDecorations(activeDecorations.current[activeFileId], []);
+    }
+    
+    editor.changeViewZones((changeAccessor) => {
+      if (activeViewZones.current[activeFileId]) {
+        changeAccessor.removeZone(activeViewZones.current[activeFileId]);
+        activeViewZones.current[activeFileId] = null;
+      }
+    });    // Apply Highlight
+    let currentDecorations = [];
+    if (tutorCommands.highlight && Array.isArray(tutorCommands.highlight) && tutorCommands.highlight.length === 2) {
+      const [startLine, endLine] = tutorCommands.highlight;
+      currentDecorations.push({
+        range: new monaco.Range(startLine, 1, endLine, 1),
+        options: {
+          isWholeLine: true,
+          className: 'tutor-action-line'
+        }
+      });
+      
+      editor.revealLineInCenterIfOutsideViewport(startLine);
+    }
+
+    // Apply Inline Widget (View Zone) & Ghost Text
+    if (tutorCommands.inlineWidget && tutorCommands.inlineWidget.line) {
+      const line = tutorCommands.inlineWidget.line;
+      const { text, demoCode, ghostText, isWalkthroughStep } = tutorCommands.inlineWidget;
+
+      editor.changeViewZones((changeAccessor) => {
+        const domNode = document.createElement('div');
+        domNode.className = 'tutor-inline-widget';
+        domNode.style.animation = 'slideUp 0.3s ease-out';
+        
+        let isExpanded = false;
+        
+        const renderWidget = () => {
+          domNode.innerHTML = `
+            <div style="background-color: #673ab7; color: white; padding: 12px; border-radius: 8px; font-family: sans-serif; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-top: 5px; position: relative; max-width: 80%; display: flex; flex-direction: column; gap: 10px;">
+              <div style="font-weight: bold; display: flex; align-items: center; gap: 5px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                AI Tutor
+              </div>
+              <div>${text}</div>
+              
+              <div style="display: flex; gap: 10px; margin-top: 5px;">
+                ${demoCode ? `<button id="btn-example" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">${isExpanded ? 'Hide Example' : 'View Example'}</button>` : ''}
+                ${ghostText ? `<button id="btn-hint" style="background: var(--accent-color, #4CAF50); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Show Hint</button>` : ''}
+                ${isWalkthroughStep ? `<button id="btn-gotit" style="background: var(--accent-color, #4CAF50); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-left: auto;">Got it! &gt;</button>` : ''}
+              </div>
+              
+              ${isExpanded && demoCode ? `
+                <div style="margin-top: 10px; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; font-size: 12px; animation: fadeIn 0.3s ease-out;">
+                  ${demoCode}
+                </div>
+              ` : ''}
+              
+              <div style="position: absolute; bottom: -8px; left: 20px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #673ab7;"></div>
+            </div>
+          `;
+
+          const btnExample = domNode.querySelector('#btn-example');
+          if (btnExample) {
+            btnExample.onclick = () => {
+              isExpanded = !isExpanded;
+              renderWidget();
+              editor.changeViewZones(accessor => {
+                accessor.layoutZone(zoneId); // Force resize
+              });
+            };
+          }
+
+          const btnHint = domNode.querySelector('#btn-hint');
+          if (btnHint) {
+            btnHint.onclick = () => {
+              // Inject ghost text decoration
+              const hintDecoration = {
+                range: new monaco.Range(line, 1, line, 1),
+                options: {
+                  isWholeLine: false,
+                  after: {
+                    content: ghostText,
+                    inlineClassName: 'ghost-text-hint'
+                  }
+                }
+              };
+              currentDecorations.push(hintDecoration);
+              const updatedDecs = editor.deltaDecorations(activeDecorations.current[activeFileId] || [], currentDecorations);
+              activeDecorations.current[activeFileId] = updatedDecs;
+              
+              // Hide the hint button after clicked
+              btnHint.style.display = 'none';
+            };
+          }
+
+          const btnGotIt = domNode.querySelector('#btn-gotit');
+          if (btnGotIt && onWalkthroughNext) {
+            btnGotIt.onclick = () => {
+              onWalkthroughNext();
+            };
+          }
+        };
+
+        renderWidget();
+        
+        const zoneId = changeAccessor.addZone({
+          afterLineNumber: Math.max(1, line - 1),
+          heightInLines: 5, // Starts slightly taller to fit buttons
+          domNode: domNode,
+          onDomNodeTop: (top) => {
+            // Dynamic height adjustment if needed
+          },
+          onComputedHeight: (height) => {
+            // Called when height changes
+          }
+        });
+        activeViewZones.current[activeFileId] = zoneId;
+      });
+      
+      editor.revealLineInCenterIfOutsideViewport(line);
+    }
+
+    if (currentDecorations.length > 0) {
+      const decs = editor.deltaDecorations([], currentDecorations);
+      activeDecorations.current[activeFileId] = decs;
+    }
+
+  }, [tutorCommands, activeFileId]);
+
+  // Keep App state in sync when user clicks a tab
+  const onAction = (action) => {
+    if (action.type === Actions.SELECT_TAB) {
+      const tabId = action.data.tabNode;
+      if (files.some(f => f.id === tabId)) {
+        onActiveFileChange(tabId);
+      }
+    }
+    return action;
+  };
+
+  const onRenderTabSet = (node, renderState) => {
+    renderState.buttons.push(
+      <div 
+        key="split-btn" 
+        style={{ display: 'flex', alignItems: 'center', padding: '0 8px', cursor: 'pointer', color: 'var(--text-muted)' }}
+        onClick={() => {
+           if (onTranslate) onTranslate();
+        }}
+        title="Split Editor & Translate"
+      >
+        <Columns size={16} />
+      </div>
+    );
+  };
+
+  const factory = (node) => {
+    const component = node.getComponent();
+    
+    if (component === "file") {
+      const fileId = node.getId();
+      const file = files.find(f => f.id === fileId);
+      if (!file) return <div style={{padding: 20}}>File not found</div>;
+      
+      return (
+        <Editor
+          height="100%"
+          language={file.language}
+          theme="vs-dark"
+          value={file.content}
+          onChange={(val) => onCodeChange(file.id, val)}
+          onMount={(editor, monaco) => handleEditorDidMount(file.id, editor, monaco)}
+          options={{
+            minimap: { enabled: false },
+            fontSize: 13,
+            wordWrap: 'on',
+            fontFamily: 'JetBrains Mono, Fira Code, monospace'
+          }}
+        />
+      );
+    }
+    
+    if (component === "translation") {
+      const transTabId = node.getId();
+      const transData = translations[transTabId];
+      if (!transData) return null;
+
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div style={{ flex: 1 }}>
+            <Editor
+              height="100%"
+              language={transData.targetLanguage}
+              theme="vs-dark"
+              value={transData.translatedCode || '// Translating...'}
+              options={{
+                readOnly: true,
+                minimap: { enabled: false },
+                fontSize: 13,
+                wordWrap: 'on',
+                fontFamily: 'JetBrains Mono, Fira Code, monospace'
+              }}
+            />
+          </div>
+          {transData.notes && (
+            <div style={{
+              height: '150px',
+              borderTop: '1px solid var(--border-color)',
+              padding: '10px',
+              overflowY: 'auto',
+              backgroundColor: 'var(--bg-sidebar)'
+            }}>
+              <div style={{fontWeight: 600, marginBottom: 5, color: 'var(--accent-color)'}}>AI Notes</div>
+              <div style={{color: 'var(--text-muted)', lineHeight: '1.4'}}>{transData.notes}</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (component === "tutor-panel") {
+      return (
+        <TutorPanel 
+          messages={tutorMessages} 
+          onSendMessage={onTutorMessage} 
+          isLoading={isTutorLoading} 
+        />
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className="editor-area" style={{ position: 'relative' }}>
+      <Layout 
+        ref={layoutRef}
+        model={model} 
+        factory={factory} 
+        onAction={onAction}
+        onRenderTabSet={onRenderTabSet}
+      />
+    </div>
+  );
+}
