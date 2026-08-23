@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, FileCode, Sparkles, BugPlay, ListChecks, MessageCircleQuestion } from 'lucide-react';
+import { Settings, FileCode, Sparkles, BugPlay, ListChecks, MessageCircleQuestion, Play } from 'lucide-react';
 
 export default function Sidebar({ 
   files, 
@@ -11,7 +11,9 @@ export default function Sidebar({
   isTranslating,
   onOpenTutor,
   onChangeLanguage,
-  onTutorAction
+  onTutorAction,
+  onRunCode,
+  isTerminalRunning
 }) {
   const activeFile = files.find(f => f.id === activeFileId);
   const activeLanguage = activeFile ? activeFile.language : '';
@@ -87,6 +89,15 @@ export default function Sidebar({
         <button className="secondary" onClick={() => onTutorAction("Can you explain how the code in my current file works?")} style={{marginTop: 5}}>
           <ListChecks size={16} />
           Explain Code
+        </button>
+        
+        <button 
+          onClick={onRunCode}
+          disabled={isTerminalRunning}
+          style={{marginTop: 5, backgroundColor: isTerminalRunning ? '#3c3c3c' : '#4CAF50', color: 'white'}}
+        >
+          <Play size={16} />
+          {isTerminalRunning ? 'Running...' : 'Run Code'}
         </button>
       </div>
 
