@@ -8,24 +8,25 @@ export async function chatWithTutor(geminiKey, ollamaUrl, ollamaModel, history, 
     adaptiveInstructions = `
 [ADAPTIVE PERSONA: BEGINNER]
 The user is a complete beginner in ${currentLanguage}.
+- AUTOMATICALLY explain new concepts. Use "explanation" inlineWidgets extensively.
 - Focus on reviewing basic concepts (variables, loops, logic) before giving solutions.
 - Break tasks down into extremely small, bite-sized steps (like freeCodeCamp).
 - Heavily explain the "why" and "how" using simple analogies.
-- Encourage them constantly.
     `;
   } else if (userProficiency === "Intermediate") {
     adaptiveInstructions = `
 [ADAPTIVE PERSONA: INTERMEDIATE]
 The user is intermediate in ${currentLanguage}.
 - Skip syntax basics. Focus on logic, architecture, and debugging strategies.
-- Point them to the right logical flow, but make them write the implementation.
+- Use a mix of "explanation" and "question" inlineWidgets to test their knowledge.
     `;
   } else {
     adaptiveInstructions = `
 [ADAPTIVE PERSONA: ADVANCED]
 The user is advanced in ${currentLanguage}.
-- Skip all basics. 
-- Immediately discuss deep architecture, performance optimizations, and edge cases.
+- DO NOT automatically explain concepts. 
+- Instead, use "question" inlineWidgets to ask if they want it explained first, or to quiz them on how they would implement the architecture.
+- Skip all basics. Immediately discuss deep architecture, performance optimizations, and edge cases.
 - Be concise and strict.
     `;
   }
