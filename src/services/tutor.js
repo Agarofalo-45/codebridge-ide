@@ -56,6 +56,7 @@ You must also use the "inlineWidgets" array to interactively guide them line-by-
 
 Ensure you escape any double quotes inside your strings (e.g. "She said \\"Hello\\"").
 Do not include trailing commas. Do not include comments in your JSON output.
+NEVER ask the user a question about code in the "message" field. All questions about code MUST be placed in an "inlineWidgets" of type "question" so it appears as a purple box directly in their code editor!
 
 JSON SCHEMA:
 {
@@ -77,12 +78,12 @@ JSON SCHEMA:
 }
 
 Explanation of fields:
-- "message": Required. Your text response.
+- "message": Required. Your text response. Do NOT ask coding questions here.
 - "isCourse": Required. Boolean. Set to true ONLY if you are starting a new course.
 - "concepts": Required if isCourse is true.
 - "sandboxFile", "sandboxCode": Optional. Use to open a new scratch file. Keep the code brief (5 lines max) for simple concepts, but it MUST be a complete, compiling example. NEVER USE "// TODO" OR INCOMPLETE CODE. You must provide the actual implementation!
 - "highlight": Optional. Line number array to highlight [start, end].
-- "inlineWidgets": REQUIRED (unless isCourse is true). Array of widgets to teach the code line-by-line. "type" MUST BE "explanation" or "question". Every sandbox MUST have at least 2 inlineWidgets to explain the concepts.
+- "inlineWidgets": REQUIRED (unless isCourse is true). Array of widgets to teach the code line-by-line. "type" MUST BE "explanation" or "question". Every sandbox or question MUST use these widgets to explain concepts or quiz the user.
 
 Return ONLY the JSON object. Do not wrap in markdown tags if possible.
 
