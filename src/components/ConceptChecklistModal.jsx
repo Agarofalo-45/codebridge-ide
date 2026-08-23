@@ -35,7 +35,7 @@ export default function ConceptChecklistModal({ concepts, onSubmit, onClose }) {
           Please rate your current comfort level with each one so I can tailor the depth of our lessons!
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 30 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 30, maxHeight: '55vh', overflowY: 'auto', paddingRight: 10 }}>
           {concepts.map((concept, idx) => (
             <div key={idx} style={{ 
               backgroundColor: 'var(--bg-editor)', 
