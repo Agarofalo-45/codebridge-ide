@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Bot, User } from 'lucide-react';
+import { Send, Bot, User, HelpCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const TypewriterMarkdown = ({ content, role }) => {
@@ -93,6 +93,32 @@ export default function TutorPanel({ messages, onSendMessage, isLoading }) {
             }}>
               <TypewriterMarkdown content={m.content} role={m.role} />
             </div>
+            {m.role === 'ai' && (
+              <button
+                onClick={() => onSendMessage("What does that mean exactly? Can you break down and explain your previous response in simpler terms?")}
+                style={{
+                  marginTop: 6,
+                  padding: '5px 12px',
+                  backgroundColor: 'transparent',
+                  color: 'var(--accent-color)',
+                  border: '1px solid var(--accent-color)',
+                  borderRadius: 14,
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  alignSelf: 'flex-start',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  transition: 'all 0.2s',
+                  opacity: 0.8
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.backgroundColor = 'rgba(99, 102, 241, 0.1)'; }}
+                onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                <HelpCircle size={12} />
+                What does that mean exactly?
+              </button>
+            )}
           </div>
         ))}
         {isLoading && (

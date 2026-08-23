@@ -36,6 +36,8 @@ function App() {
   // Store translations by tab ID so they don't overwrite each other
   const [translations, setTranslations] = useState({});
   const [latestTranslationId, setLatestTranslationId] = useState(null);
+  const [widgetQueue, setWidgetQueue] = useState([]);
+  const [activeWidget, setActiveWidget] = useState(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [ollamaUrl, setOllamaUrl] = useState(() => localStorage.getItem('ollamaUrl') || 'http://localhost:11434');
@@ -166,6 +168,25 @@ To get started, simply tell me what you'd like to build today! 👇`
     setTutorOpenTrigger(Date.now());
   };
 
+  const handleNextWidget = () => {
+    if (widgetQueue.length > 0) {
+      const newQueue = [...widgetQueue];
+      const nextWidget = newQueue.shift();
+      setWidgetQueue(newQueue);
+      setActiveWidget(nextWidget);
+      setTutorCommands(prev => ({ ...prev, activeWidget: nextWidget }));
+    } else {
+      setActiveWidget(null);
+      setTutorCommands(prev => ({ ...prev, activeWidget: null }));
+    }
+  };
+
+  const handleDismissWidget = () => {
+    setWidgetQueue([]);
+    setActiveWidget(null);
+    setTutorCommands(prev => ({ ...prev, activeWidget: null }));
+  };
+
   const handleTutorAction = (prompt) => {
     handleOpenTutor();
     handleTutorMessage(prompt);
@@ -210,11 +231,19 @@ To get started, simply tell me what you'd like to build today! 👇`
 
       setTutorMessages([...newHistory, { role: 'ai', content: response.message }]);
       
-      // Update tutor commands. If we have a walkthrough, we will override the inlineWidget dynamically in rendering.
-      setTutorCommands({
-        highlight: response.highlight,
-        inlineWidget: response.inlineWidget
-      });
+      // Update tutor commands.
+      if (response.inlineWidgets && Array.isArray(response.inlineWidgets) && response.inlineWidgets.length > 0) {
+        const queue = [...response.inlineWidgets];
+        const firstWidget = queue.shift();
+        setWidgetQueue(queue);
+        setActiveWidget(firstWidget);
+        setTutorCommands(prev => ({ ...prev, activeWidget: firstWidget, highlight: response.highlight }));
+      } else {
+        setTutorCommands({
+          highlight: response.highlight,
+          inlineWidget: response.inlineWidget
+        });
+      }
       
     } catch (error) {
       setTutorMessages([...newHistory, { role: 'ai', content: `**Error**: ${error.message}` }]);
@@ -299,7 +328,90 @@ Based on this assessment, please open a sandbox file to teach the first concept 
         tutorCommands={activeTutorCommands}
         tutorOpenTrigger={tutorOpenTrigger}
         onWalkthroughNext={handleWalkthroughNext}
+        onNextWidget={handleNextWidget}
+        onDismissWidget={handleDismissWidget}
+        onSendMessage={handleTutorAction}
       />
+
+      {/* Global Answer Box for Questions */}
+      {activeWidget && activeWidget.type === 'question' && (
+        <div style={{
+          position: 'fixed',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '600px',
+          maxWidth: '90%',
+          backgroundColor: 'var(--bg-sidebar)',
+          border: '1px solid #673ab7',
+          borderRadius: 12,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+          padding: 20,
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 15,
+          animation: 'slideUp 0.3s ease-out'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ color: '#673ab7', fontWeight: 'bold', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              Tutor Question
+            </div>
+            <button onClick={handleDismissWidget} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+          
+          <div style={{ fontSize: 14, color: 'var(--text-main)' }}>
+            {activeWidget.text}
+          </div>
+          
+          <div style={{ display: 'flex', gap: 10 }}>
+            <input 
+              id="question-answer-input"
+              type="text" 
+              placeholder="Type your answer here..."
+              style={{
+                flex: 1,
+                padding: '12px 15px',
+                borderRadius: 8,
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-editor)',
+                color: 'var(--text-main)',
+                fontSize: 14,
+                outline: 'none'
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                  handleTutorAction("My answer: " + e.target.value);
+                  handleNextWidget();
+                }
+              }}
+            />
+            <button 
+              onClick={() => {
+                const input = document.getElementById('question-answer-input');
+                if (input && input.value.trim()) {
+                  handleTutorAction("My answer: " + input.value);
+                  handleNextWidget();
+                }
+              }}
+              style={{
+                padding: '0 20px',
+                backgroundColor: '#673ab7',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Submit
+            </button>
+          </div>
+        </div>
+      )}
 
       {isSettingsOpen && (
         <SettingsModal 

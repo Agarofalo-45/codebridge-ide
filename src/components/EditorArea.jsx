@@ -163,9 +163,9 @@ export default function EditorArea({
     }
 
     // Apply Inline Widget (View Zone) & Ghost Text
-    if (tutorCommands.inlineWidget && tutorCommands.inlineWidget.line) {
-      const line = tutorCommands.inlineWidget.line;
-      const { text, demoCode, ghostText, isWalkthroughStep } = tutorCommands.inlineWidget;
+    if (tutorCommands.activeWidget && tutorCommands.activeWidget.line) {
+      const line = tutorCommands.activeWidget.line;
+      const { type, text, demoCode, ghostText } = tutorCommands.activeWidget;
 
       editor.changeViewZones((changeAccessor) => {
         const domNode = document.createElement('div');
@@ -175,68 +175,86 @@ export default function EditorArea({
         let isExpanded = false;
         
         const renderWidget = () => {
-          domNode.innerHTML = `
-            <div style="background-color: #673ab7; color: white; padding: 12px; border-radius: 8px; font-family: sans-serif; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-top: 5px; position: relative; max-width: 80%; display: flex; flex-direction: column; gap: 10px;">
-              <div style="font-weight: bold; display: flex; align-items: center; gap: 5px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                AI Tutor
-              </div>
-              <div>${text}</div>
-              
-              <div style="display: flex; gap: 10px; margin-top: 5px;">
-                ${demoCode ? `<button id="btn-example" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">${isExpanded ? 'Hide Example' : 'View Example'}</button>` : ''}
-                ${ghostText ? `<button id="btn-hint" style="background: var(--accent-color, #4CAF50); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Show Hint</button>` : ''}
-                ${isWalkthroughStep ? `<button id="btn-gotit" style="background: var(--accent-color, #4CAF50); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-left: auto;">Got it! &gt;</button>` : ''}
-              </div>
-              
-              ${isExpanded && demoCode ? `
-                <div style="margin-top: 10px; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; font-size: 12px; animation: fadeIn 0.3s ease-out;">
-                  ${demoCode}
+          if (type === 'question') {
+            domNode.innerHTML = `
+              <div style="position: relative; height: 100%; display: flex; align-items: flex-end;">
+                <div style="background-color: #673ab7; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 20px; margin-bottom: 8px;">
+                  ? Answer Below
+                  <div style="position: absolute; bottom: 0px; left: 20px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #673ab7;"></div>
                 </div>
-              ` : ''}
-              
-              <div style="position: absolute; bottom: -8px; left: 20px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #673ab7;"></div>
-            </div>
-          `;
+              </div>
+            `;
+          } else {
+            domNode.innerHTML = `
+              <div style="background-color: #673ab7; color: white; padding: 12px; border-radius: 8px; font-family: sans-serif; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-top: 5px; position: relative; max-width: 80%; display: flex; flex-direction: column; gap: 10px; z-index: 10;">
+                <button id="btn-close" style="position: absolute; top: 8px; right: 8px; background: none; border: none; color: white; cursor: pointer; opacity: 0.7; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+                <div style="font-weight: bold; display: flex; align-items: center; gap: 5px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  AI Tutor Explanation
+                </div>
+                <div style="padding-right: 15px;">${text}</div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 5px; align-items: center;">
+                  <button id="btn-ask-more" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px;" title="Explain this more">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    Explain More
+                  </button>
+                  ${demoCode ? `<button id="btn-example" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">${isExpanded ? 'Hide Example' : 'View Example'}</button>` : ''}
+                  ${ghostText ? `<button id="btn-hint" style="background: var(--accent-color, #4CAF50); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Show Hint</button>` : ''}
+                  <button id="btn-gotit" style="background: var(--accent-color, #4CAF50); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-left: auto;">Got it! &gt;</button>
+                </div>
+                
+                ${isExpanded && demoCode ? `
+                  <div style="margin-top: 10px; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; font-size: 12px; animation: fadeIn 0.3s ease-out;">
+                    ${demoCode}
+                  </div>
+                ` : ''}
+                
+                <div style="position: absolute; bottom: -8px; left: 20px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #673ab7;"></div>
+              </div>
+            `;
+          }
+
+          // Attach event listeners dynamically
+          const btnClose = domNode.querySelector('#btn-close');
+          if (btnClose && typeof onDismissWidget === 'function') {
+            btnClose.onclick = onDismissWidget;
+          }
+
+          const btnAskMore = domNode.querySelector('#btn-ask-more');
+          if (btnAskMore && typeof onSendMessage === 'function') {
+            btnAskMore.onclick = () => onSendMessage(`Can you explain in detail how line ${line} works? (${text})`);
+          }
+
+          const btnGotIt = domNode.querySelector('#btn-gotit');
+          if (btnGotIt && typeof onNextWidget === 'function') {
+            btnGotIt.onclick = () => onNextWidget();
+          }
 
           const btnExample = domNode.querySelector('#btn-example');
           if (btnExample) {
             btnExample.onclick = () => {
               isExpanded = !isExpanded;
               renderWidget();
-              editor.changeViewZones(accessor => {
-                accessor.layoutZone(zoneId); // Force resize
-              });
+              editor.changeViewZones(accessor => accessor.layoutZone(zoneId));
             };
           }
 
           const btnHint = domNode.querySelector('#btn-hint');
           if (btnHint) {
             btnHint.onclick = () => {
-              // Inject ghost text decoration
               const hintDecoration = {
                 range: new monaco.Range(line, 1, line, 1),
                 options: {
                   isWholeLine: false,
-                  after: {
-                    content: ghostText,
-                    inlineClassName: 'ghost-text-hint'
-                  }
+                  after: { content: ghostText, inlineClassName: 'ghost-text-hint' }
                 }
               };
               currentDecorations.push(hintDecoration);
-              const updatedDecs = editor.deltaDecorations(activeDecorations.current[activeFileId] || [], currentDecorations);
-              activeDecorations.current[activeFileId] = updatedDecs;
-              
-              // Hide the hint button after clicked
+              activeDecorations.current[activeFileId] = editor.deltaDecorations(activeDecorations.current[activeFileId] || [], currentDecorations);
               btnHint.style.display = 'none';
-            };
-          }
-
-          const btnGotIt = domNode.querySelector('#btn-gotit');
-          if (btnGotIt && onWalkthroughNext) {
-            btnGotIt.onclick = () => {
-              onWalkthroughNext();
             };
           }
         };
@@ -245,14 +263,8 @@ export default function EditorArea({
         
         const zoneId = changeAccessor.addZone({
           afterLineNumber: Math.max(1, line - 1),
-          heightInLines: 5, // Starts slightly taller to fit buttons
-          domNode: domNode,
-          onDomNodeTop: (top) => {
-            // Dynamic height adjustment if needed
-          },
-          onComputedHeight: (height) => {
-            // Called when height changes
-          }
+          heightInLines: type === 'question' ? 2 : 7,
+          domNode: domNode
         });
         activeViewZones.current[activeFileId] = zoneId;
       });
