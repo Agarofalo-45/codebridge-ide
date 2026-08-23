@@ -6,7 +6,7 @@ export async function onRequestPost(context) {
 
     // Run the Llama 3 model provided by Cloudflare AI
     // We use the 8B instruct model which is fast and supports JSON formatting natively
-    const response = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+    const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
       messages: [
         { role: 'user', content: prompt }
       ]
