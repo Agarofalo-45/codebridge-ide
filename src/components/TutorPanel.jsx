@@ -60,7 +60,7 @@ export default function TutorPanel({ messages, onSendMessage, isLoading }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-editor)' }}>
       <div style={{ flex: 1, overflowY: 'auto', padding: 15 }}>
-        {messages.map((m, i) => (
+        {messages.filter(m => !(m.role === 'user' && m.content.includes('[SYSTEM MESSAGE'))).map((m, i) => (
           <div key={i} style={{ 
             marginBottom: 20, 
             display: 'flex', 

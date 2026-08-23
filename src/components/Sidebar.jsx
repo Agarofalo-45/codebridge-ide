@@ -58,26 +58,6 @@ export default function Sidebar({
           </div>
         ))}
       </div>
-      
-      <div className="translate-tool">
-        <div style={{fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase'}}>AI Translation</div>
-        <div className="form-group">
-          <label>Target Language</label>
-          <select value={targetLanguage} onChange={(e) => onTargetLanguageChange(e.target.value)}>
-            <option value="javascript">JavaScript</option>
-            <option value="python">Python</option>
-            <option value="java">Java</option>
-            <option value="csharp">C#</option>
-            <option value="go">Go</option>
-            <option value="rust">Rust</option>
-          </select>
-        </div>
-        <button onClick={onTranslate} disabled={isTranslating}>
-          <Sparkles size={16} />
-          {isTranslating ? <span className="loading-text">Translating</span> : 'Translate Code'}
-        </button>
-      </div>
-
       <div className="translate-tool">
         <div style={{fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10}}>Interactive Learning</div>
         

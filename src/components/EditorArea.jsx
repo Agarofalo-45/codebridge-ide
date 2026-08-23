@@ -296,18 +296,7 @@ export default function EditorArea({
   };
 
   const onRenderTabSet = (node, renderState) => {
-    renderState.buttons.push(
-      <div 
-        key="split-btn" 
-        style={{ display: 'flex', alignItems: 'center', padding: '0 8px', cursor: 'pointer', color: 'var(--text-muted)' }}
-        onClick={() => {
-           if (onTranslate) onTranslate();
-        }}
-        title="Split Editor & Translate"
-      >
-        <Columns size={16} />
-      </div>
-    );
+    // No custom buttons for now
   };
 
   const factory = (node) => {

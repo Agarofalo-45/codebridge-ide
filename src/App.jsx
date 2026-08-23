@@ -81,7 +81,7 @@ To get started, simply tell me what you'd like to build today! 👇`
   const [tutorOpenTrigger, setTutorOpenTrigger] = useState(0);
   const [isProficiencyModalOpen, setIsProficiencyModalOpen] = useState(false);
   const [pendingCourseConcepts, setPendingCourseConcepts] = useState(null);
-  const [currentWalkthrough, setCurrentWalkthrough] = useState(null);
+  // Active Walkthrough state (deprecated, using widgetQueue instead)
 
   const activeFile = files.find(f => f.id === activeFileId);
   
@@ -245,12 +245,6 @@ To get started, simply tell me what you'd like to build today! 👇`
         setFiles(prev => [...prev, newFile]);
         setActiveFileId(newFile.id);
         
-        if (response.walkthroughSteps && response.walkthroughSteps.length > 0) {
-          setCurrentWalkthrough({
-            steps: response.walkthroughSteps,
-            currentIndex: 0
-          });
-        }
       }
 
       setTutorMessages([...newHistory, { role: 'ai', content: response.message }]);
@@ -286,29 +280,11 @@ Based on this assessment, please open a sandbox file to teach the first concept 
     handleTutorMessage(systemPrompt);
   };
 
-  const handleWalkthroughNext = () => {
-    if (!currentWalkthrough) return;
-    const nextIndex = currentWalkthrough.currentIndex + 1;
-    if (nextIndex < currentWalkthrough.steps.length) {
-      setCurrentWalkthrough({ ...currentWalkthrough, currentIndex: nextIndex });
-    } else {
-      setCurrentWalkthrough(null);
-      const systemPrompt = `[SYSTEM MESSAGE] The user has finished the Sandbox walkthrough. Instruct them to return to their main code, and when they are ready, issue them a challenge using "inlineWidget" and "ghostText" on their main file.`;
-      handleTutorMessage(systemPrompt);
-    }
-  };
+  // Deprecated Walkthrough function
+  const handleWalkthroughNext = () => {};
 
   // Derive the active inlineWidget based on the walkthrough state
   const activeTutorCommands = { ...tutorCommands };
-  if (currentWalkthrough) {
-    const step = currentWalkthrough.steps[currentWalkthrough.currentIndex];
-    activeTutorCommands.inlineWidget = {
-      line: step.line,
-      text: step.text,
-      isWalkthroughStep: true
-    };
-    activeTutorCommands.highlight = [step.line, step.line];
-  }
 
   useEffect(() => {
     const handleKeyDown = (e) => {
