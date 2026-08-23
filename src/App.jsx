@@ -39,6 +39,7 @@ function App() {
   const [latestTranslationId, setLatestTranslationId] = useState(null);
   const [widgetQueue, setWidgetQueue] = useState([]);
   const [activeWidget, setActiveWidget] = useState(null);
+  const [hasCourseStarted, setHasCourseStarted] = useState(false);
 
   const [terminalOutput, setTerminalOutput] = useState(null);
   const [isTerminalRunning, setIsTerminalRunning] = useState(false);
@@ -188,16 +189,37 @@ To get started, simply tell me what you'd like to build today! 👇`
       const newQueue = [...widgetQueue];
       const nextWidget = newQueue.shift();
       setWidgetQueue(newQueue);
+      const currentWidgetFilename = activeWidget ? activeWidget.filename : null;
+
       setActiveWidget(nextWidget);
       setTutorCommands(prev => ({ ...prev, activeWidget: nextWidget }));
       
       if (nextWidget.filename) {
         const target = files.find(f => f.name === nextWidget.filename);
         if (target && target.id !== activeFileId) {
+          
+          if (currentWidgetFilename && currentWidgetFilename !== nextWidget.filename) {
+             const prevFile = files.find(f => f.name === currentWidgetFilename);
+             if (prevFile && prevFile.isSandbox) {
+                const isNeededAgain = newQueue.some(w => w.filename === currentWidgetFilename);
+                if (!isNeededAgain) {
+                   setFiles(prevFiles => prevFiles.filter(f => f.id !== prevFile.id));
+                }
+             }
+          }
+
           setActiveFileId(target.id);
         }
       }
     } else {
+      const currentWidgetFilename = activeWidget ? activeWidget.filename : null;
+      if (currentWidgetFilename) {
+         const prevFile = files.find(f => f.name === currentWidgetFilename);
+         if (prevFile && prevFile.isSandbox) {
+            setFiles(prevFiles => prevFiles.filter(f => f.id !== prevFile.id));
+         }
+      }
+
       setActiveWidget(null);
       setTutorCommands(prev => ({ ...prev, activeWidget: null }));
       
@@ -209,6 +231,11 @@ To get started, simply tell me what you'd like to build today! 👇`
   const handleCheckAnswer = (questionText, code) => {
     handleTutorMessage(`[SYSTEM MESSAGE - DO NOT SHOW TO USER] The user has submitted their code answer for the question: "${questionText}". 
 Evaluate their code. Reply ONLY with an inlineWidgets array containing your feedback. Do NOT output a new sandboxFile. Keep your "message" field completely empty.`, true);
+  };
+
+  const handleExplainConcept = (conceptText) => {
+    handleTutorMessage(`[SYSTEM MESSAGE - DO NOT SHOW TO USER] The user needs you to explain the concept behind this question: "${conceptText}". 
+Please pause the quiz and generate a brand new sandboxFile explicitly dedicated to explaining this concept. Use inlineWidgets to guide them through the new file.`, true);
   };
 
   const handleDismissWidget = () => {
@@ -237,31 +264,38 @@ Evaluate their code. Reply ONLY with an inlineWidgets array containing your feed
       const response = await chatWithTutor(geminiKey, ollamaUrl, ollamaModel, apiHistory, currentCode, currentLanguage, userProficiency);
       
       // Handle Course Syllabus Generation
-      if (response.isCourse && response.concepts && response.concepts.length > 0) {
+      if (response.isCourse && response.concepts && response.concepts.length > 0 && !hasCourseStarted) {
         setPendingCourseConcepts(response.concepts);
       }
 
-      // Handle Sandbox file generation
+      // Handle Sandbox file generation & Active Tab Switching
+      let newFiles = [];
       if (response.sandboxFiles && Array.isArray(response.sandboxFiles)) {
-        const newFiles = response.sandboxFiles.map((sf, index) => ({
+        newFiles = response.sandboxFiles.map((sf, index) => ({
            id: 'sandbox-' + Date.now() + '-' + index,
            name: sf.filename,
            language: currentLanguage,
            content: sf.code,
            isSandbox: true
         }));
-        
-        if (newFiles.length > 0) {
-          setFiles(prev => [...prev, ...newFiles]);
-          
-          let startFileId = newFiles[0].id;
-          if (response.inlineWidgets && response.inlineWidgets.length > 0 && response.inlineWidgets[0].filename) {
-            const targetName = response.inlineWidgets[0].filename;
-            const target = newFiles.find(f => f.name === targetName);
-            if (target) startFileId = target.id;
+      }
+
+      const targetName = (response.inlineWidgets && response.inlineWidgets.length > 0) ? response.inlineWidgets[0].filename : null;
+
+      if (newFiles.length > 0) {
+        setFiles(prev => {
+          const combined = [...prev, ...newFiles];
+          if (targetName) {
+            const target = combined.find(f => f.name === targetName);
+            if (target) setTimeout(() => setActiveFileId(target.id), 0);
+          } else {
+            setTimeout(() => setActiveFileId(newFiles[0].id), 0);
           }
-          setActiveFileId(startFileId);
-        }
+          return combined;
+        });
+      } else if (targetName) {
+        const target = files.find(f => f.name === targetName);
+        if (target) setActiveFileId(target.id);
       }
 
       if (!isHidden && response.message && response.message.trim() !== '') {
@@ -291,6 +325,7 @@ Evaluate their code. Reply ONLY with an inlineWidgets array containing your feed
 
   const handleCourseAssessments = (assessments) => {
     setPendingCourseConcepts(null);
+    setHasCourseStarted(true);
     const systemPrompt = `[SYSTEM MESSAGE - DO NOT SHOW TO USER]
 The user has submitted their self-assessment for the syllabus concepts:
 ${Object.entries(assessments).map(([k, v]) => `- ${k}: ${v}`).join('\n')}
@@ -354,91 +389,13 @@ CRITICAL: Do NOT set "isCourse" to true again! The course has already started.`;
         onNextWidget={handleNextWidget}
         onDismissWidget={handleDismissWidget}
         onCheckAnswer={handleCheckAnswer}
+        onExplainConcept={handleExplainConcept}
         onSendMessage={handleTutorMessage}
         terminalOutput={terminalOutput}
         onCloseTerminal={() => setTerminalOutput(null)}
       />
 
       {/* Global Answer Box for Questions */}
-      {activeWidget && activeWidget.type === 'question' && (
-        <div style={{
-          position: 'fixed',
-          bottom: 20,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '600px',
-          maxWidth: '90%',
-          backgroundColor: 'var(--bg-sidebar)',
-          border: '1px solid #673ab7',
-          borderRadius: 12,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-          padding: 20,
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 15,
-          animation: 'slideUp 0.3s ease-out'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ color: '#673ab7', fontWeight: 'bold', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-              Tutor Question
-            </div>
-            <button onClick={handleDismissWidget} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-          </div>
-          
-          <div style={{ fontSize: 14, color: 'var(--text-main)' }}>
-            {activeWidget.text}
-          </div>
-          
-          <div style={{ display: 'flex', gap: 10 }}>
-            <input 
-              id="question-answer-input"
-              type="text" 
-              placeholder="Type your answer here..."
-              style={{
-                flex: 1,
-                padding: '12px 15px',
-                borderRadius: 8,
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-editor)',
-                color: 'var(--text-main)',
-                fontSize: 14,
-                outline: 'none'
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.target.value.trim()) {
-                  handleTutorAction("My answer: " + e.target.value);
-                  handleNextWidget();
-                }
-              }}
-            />
-            <button 
-              onClick={() => {
-                const input = document.getElementById('question-answer-input');
-                if (input && input.value.trim()) {
-                  handleTutorAction("My answer: " + input.value);
-                  handleNextWidget();
-                }
-              }}
-              style={{
-                padding: '0 20px',
-                backgroundColor: '#673ab7',
-                color: 'white',
-                border: 'none',
-                borderRadius: 8,
-                fontWeight: 'bold',
-                cursor: 'pointer'
-              }}
-            >
-              Submit
-            </button>
-          </div>
-        </div>
-      )}
-
       {isSettingsOpen && (
         <SettingsModal 
           ollamaUrl={ollamaUrl} 

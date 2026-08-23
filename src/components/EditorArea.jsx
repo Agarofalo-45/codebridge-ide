@@ -110,6 +110,25 @@ export default function EditorArea({
     }
   }, [activeFileId, files, model]);
 
+  // Sync file deletions to close tabs automatically
+  useEffect(() => {
+    if (!layoutRef.current) return;
+    const currentFileIds = new Set(files.map(f => f.id));
+    
+    const fileNodes = [];
+    model.visitNodes(node => {
+      if (node.getType() === "tab" && node.getComponent() === "file") {
+        fileNodes.push(node);
+      }
+    });
+    
+    fileNodes.forEach(node => {
+      if (!currentFileIds.has(node.getId())) {
+        model.doAction(Actions.deleteTab(node.getId()));
+      }
+    });
+  }, [files, model]);
+
   // Sync translation results to a new tab
   useEffect(() => {
     if (!latestTranslationId || !layoutRef.current) return;
@@ -212,7 +231,8 @@ export default function EditorArea({
                 <div style="font-size: 11px; opacity: 0.8; font-style: italic;">Write your answer in the code editor, then click Submit Code.</div>
                 
                 <div style="display: flex; gap: 10px; margin-top: 5px; align-items: center;">
-                  <button id="btn-submit" style="background: var(--accent-color, #4CAF50); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; width: 100%;">Submit Code</button>
+                  <button id="btn-submit" style="background: var(--accent-color, #4CAF50); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; flex: 1;">Submit Code</button>
+                  <button id="btn-explain-concept" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; flex: 1;">Explain Concept</button>
                 </div>
                 
                 <div style="position: absolute; bottom: -8px; left: 20px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #673ab7;"></div>
@@ -259,6 +279,16 @@ export default function EditorArea({
                btnSubmit.style.opacity = "0.7";
                btnSubmit.disabled = true;
                onCheckAnswer(text, editor.getValue());
+            };
+          }
+
+          const btnExplainConcept = domNode.querySelector('#btn-explain-concept');
+          if (btnExplainConcept && typeof onExplainConcept === 'function') {
+            btnExplainConcept.onclick = () => {
+               btnExplainConcept.innerText = "Loading...";
+               btnExplainConcept.style.opacity = "0.7";
+               btnExplainConcept.disabled = true;
+               onExplainConcept(text);
             };
           }
 
