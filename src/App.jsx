@@ -223,8 +223,8 @@ To get started, simply tell me what you'd like to build today! 👇`
       setActiveWidget(null);
       setTutorCommands(prev => ({ ...prev, activeWidget: null }));
       
-      // Auto-advance the conversation to next concept or final quiz
-      handleTutorMessage(`[SYSTEM MESSAGE - DO NOT SHOW TO USER] The user has completed the interactive widgets for this code. If we are currently following a multi-concept syllabus, move to the next concept. IF THE LESSON IS ENTIRELY OVER, you MUST generate a final "Overview Quiz" by creating a new sandbox file with a simple coding question (using a purple widget). The user will write the code in the IDE to answer it.`, true);
+      // Inform AI but do not force generation of the next concept
+      handleTutorMessage(`[SYSTEM MESSAGE - DO NOT SHOW TO USER] The user has completed the interactive widgets for this code. Acknowledge this with a brief, encouraging message in the chat and ask if they are ready to move on to the next concept. If they have reached the end of the lesson, ask if they are ready for the final Overview Quiz instead. Do NOT generate the next concept's sandboxFile or code yet. Wait for their confirmation.`, true);
     }
   };
 
