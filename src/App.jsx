@@ -286,7 +286,8 @@ To get started, simply tell me what you'd like to build today! 👇`
 The user has submitted their self-assessment for the syllabus concepts:
 ${Object.entries(assessments).map(([k, v]) => `- ${k}: ${v}`).join('\n')}
 
-Based on this assessment, please open a sandbox file to teach the first concept using the "sandboxFile", "sandboxCode", and "walkthroughSteps" JSON parameters.`;
+Based on this assessment, please generate the sandbox files for the entire lesson at once using the "sandboxFiles" array, and guide the user through them using "inlineWidgets".
+CRITICAL: Do NOT set "isCourse" to true again! The course has already started.`;
     handleTutorMessage(systemPrompt);
   };
 
