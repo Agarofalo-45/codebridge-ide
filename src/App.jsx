@@ -73,25 +73,23 @@ To get started, simply tell me what you'd like to build today! 👇`
   const [isTutorLoading, setIsTutorLoading] = useState(false);
   const [tutorCommands, setTutorCommands] = useState(null);
   const [tutorOpenTrigger, setTutorOpenTrigger] = useState(0);
-  const [isProficiencyModalOpen, setIsProficiencyModalOpen] = useState(false);
   const [pendingCourseConcepts, setPendingCourseConcepts] = useState(null);
-  // Active Walkthrough state (deprecated, using widgetQueue instead)
-
-  const activeFile = files.find(f => f.id === activeFileId);
   
-  // Check proficiency when active language changes
-  useEffect(() => {
-    if (activeFile && activeFile.language) {
-      if (!languageProficiencies[activeFile.language]) {
-        setIsProficiencyModalOpen(true);
-      }
-    }
-  }, [activeFileId, activeFile, languageProficiencies]);
+  const activeFile = files.find(f => f.id === activeFileId);
+  const [dismissedProficiencies, setDismissedProficiencies] = useState({});
 
-  const handleProficiencySelect = (language, level) => {
-    const newProfs = { ...languageProficiencies, [language]: level };
-    setLanguageProficiencies(newProfs);
-    setIsProficiencyModalOpen(false);
+  // Compute if modal should be open directly (no useEffect needed)
+  const isProficiencyModalOpen = Boolean(
+    activeFile && 
+    activeFile.language && 
+    !languageProficiencies[activeFile.language] && 
+    !dismissedProficiencies[activeFile.language]
+  );
+
+  const handleProficiencyClose = () => {
+    if (activeFile && activeFile.language) {
+      setDismissedProficiencies(prev => ({ ...prev, [activeFile.language]: true }));
+    }
   };
   
   // Compute global translating state for the sidebar button based on the latest translation
@@ -423,8 +421,11 @@ Based on this assessment, please open a sandbox file to teach the first concept 
       {isProficiencyModalOpen && activeFile && (
         <ProficiencyModal 
           language={activeFile.language}
-          onSelect={handleProficiencySelect}
-          onClose={() => setIsProficiencyModalOpen(false)}
+          onSelect={(lang, level) => {
+            const newProfs = { ...languageProficiencies, [lang]: level };
+            setLanguageProficiencies(newProfs);
+          }}
+          onClose={handleProficiencyClose}
         />
       )}
 
