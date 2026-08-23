@@ -190,6 +190,13 @@ To get started, simply tell me what you'd like to build today! 👇`
       setWidgetQueue(newQueue);
       setActiveWidget(nextWidget);
       setTutorCommands(prev => ({ ...prev, activeWidget: nextWidget }));
+      
+      if (nextWidget.filename) {
+        const target = files.find(f => f.name === nextWidget.filename);
+        if (target && target.id !== activeFileId) {
+          setActiveFileId(target.id);
+        }
+      }
     } else {
       setActiveWidget(null);
       setTutorCommands(prev => ({ ...prev, activeWidget: null }));
@@ -228,17 +235,26 @@ To get started, simply tell me what you'd like to build today! 👇`
       }
 
       // Handle Sandbox file generation
-      if (response.sandboxFile && response.sandboxCode) {
-        const newFile = {
-           id: 'sandbox-' + Date.now(),
-           name: response.sandboxFile,
+      if (response.sandboxFiles && Array.isArray(response.sandboxFiles)) {
+        const newFiles = response.sandboxFiles.map((sf, index) => ({
+           id: 'sandbox-' + Date.now() + '-' + index,
+           name: sf.filename,
            language: currentLanguage,
-           content: response.sandboxCode,
+           content: sf.code,
            isSandbox: true
-        };
-        setFiles(prev => [...prev, newFile]);
-        setActiveFileId(newFile.id);
+        }));
         
+        if (newFiles.length > 0) {
+          setFiles(prev => [...prev, ...newFiles]);
+          
+          let startFileId = newFiles[0].id;
+          if (response.inlineWidgets && response.inlineWidgets.length > 0 && response.inlineWidgets[0].filename) {
+            const targetName = response.inlineWidgets[0].filename;
+            const target = newFiles.find(f => f.name === targetName);
+            if (target) startFileId = target.id;
+          }
+          setActiveFileId(startFileId);
+        }
       }
 
       setTutorMessages([...newHistory, { role: 'ai', content: response.message }]);
