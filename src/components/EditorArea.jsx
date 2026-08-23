@@ -77,14 +77,35 @@ export default function EditorArea({
     if (existingNode) {
       model.doAction(Actions.selectTab(existingNode.getId()));
     } else {
-      const activeTabset = model.getActiveTabset();
-      if (activeTabset) {
+      let targetTabset = model.getActiveTabset();
+      let dockLocation = DockLocation.CENTER;
+
+      // Prevent opening files inside the AI Tutor's split pane
+      if (targetTabset) {
+        const hasTutor = targetTabset.getChildren().some(c => c.getComponent && c.getComponent() === 'tutor-panel');
+        if (hasTutor) {
+          const allTabsets = [];
+          model.visitNodes((node) => {
+            if (node.getType() === "tabset") allTabsets.push(node);
+          });
+          const altTabset = allTabsets.find(ts => !ts.getChildren().some(c => c.getComponent && c.getComponent() === 'tutor-panel'));
+          
+          if (altTabset) {
+            targetTabset = altTabset;
+          } else {
+            // If no other tabset exists, split to the left instead of overwriting the AI Tutor
+            dockLocation = DockLocation.LEFT;
+          }
+        }
+      }
+
+      if (targetTabset) {
          model.doAction(Actions.addNode({
             type: "tab",
             component: "file",
             id: file.id,
             name: file.name,
-          }, activeTabset.getId(), DockLocation.CENTER, -1));
+          }, targetTabset.getId(), dockLocation, -1));
       }
     }
   }, [activeFileId, files, model]);
