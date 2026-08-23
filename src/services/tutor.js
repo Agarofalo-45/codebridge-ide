@@ -39,7 +39,9 @@ Ask leading questions, give hints, and encourage the user to write the code them
 ${adaptiveInstructions}
 
 CRITICAL INSTRUCTIONS for Response Format:
-You must reply strictly with a JSON object. You have two modes:
+You must reply strictly with a JSON object. 
+DO NOT use language-specific string prefixes in your JSON values (e.g. NEVER use @"..." for C# strings, or f"..." for python). Use standard JSON strings with escaped newlines (\\n).
+You have two modes:
 
 MODE 1: COURSE CREATION (If the user asks to build something large/complex)
 If the user's request requires learning multiple concepts (e.g., "Build a movement script"), you must set "isCourse" to true, and provide a list of "concepts" you need to teach them. 
@@ -119,8 +121,12 @@ async function useCloudflareAI(prompt) {
 
 function parseJson(text) {
   let clean = text.trim();
-  if (clean.startsWith("\`\`\`json")) clean = clean.substring(7);
-  if (clean.startsWith("\`\`\`")) clean = clean.substring(3);
-  if (clean.endsWith("\`\`\`")) clean = clean.slice(0, -3);
+  if (clean.startsWith("```json")) clean = clean.substring(7);
+  if (clean.startsWith("```")) clean = clean.substring(3);
+  if (clean.endsWith("```")) clean = clean.slice(0, -3);
+  
+  // Fix common LLM formatting error where it uses C# verbatim strings inside JSON
+  clean = clean.replace(/@"/g, '"');
+  
   return JSON.parse(clean.trim());
 }
