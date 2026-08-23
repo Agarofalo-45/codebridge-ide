@@ -47,13 +47,7 @@ function App() {
   const [ollamaUrl, setOllamaUrl] = useState(() => localStorage.getItem('ollamaUrl') || 'http://localhost:11434');
   const [ollamaModel, setOllamaModel] = useState(() => localStorage.getItem('ollamaModel') || 'codellama');
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem('geminiKey') || '');
-  const [languageProficiencies, setLanguageProficiencies] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('languageProficiencies')) || {};
-    } catch {
-      return {};
-    }
-  });
+  const [languageProficiencies, setLanguageProficiencies] = useState({});
 
   const [tutorMessages, setTutorMessages] = useState(() => {
     const hasSeen = localStorage.getItem('hasSeenWelcome2'); // using a new key to force it to show for the user
@@ -97,7 +91,6 @@ To get started, simply tell me what you'd like to build today! 👇`
   const handleProficiencySelect = (language, level) => {
     const newProfs = { ...languageProficiencies, [language]: level };
     setLanguageProficiencies(newProfs);
-    localStorage.setItem('languageProficiencies', JSON.stringify(newProfs));
     setIsProficiencyModalOpen(false);
   };
   
