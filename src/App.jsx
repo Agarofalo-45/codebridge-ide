@@ -201,9 +201,14 @@ To get started, simply tell me what you'd like to build today! 👇`
       setActiveWidget(null);
       setTutorCommands(prev => ({ ...prev, activeWidget: null }));
       
-      // Auto-advance the conversation so the AI knows they finished tracing the code
-      handleTutorMessage(`[SYSTEM MESSAGE] The user has completed the interactive widgets for this code. If we are currently following a multi-concept syllabus, please move on to the next concept by generating the next sandbox file and widgets. If the lesson is over, just ask them if they have any questions.`);
+      // Auto-advance the conversation to next concept or final quiz
+      handleTutorMessage(`[SYSTEM MESSAGE - DO NOT SHOW TO USER] The user has completed the interactive widgets for this code. If we are currently following a multi-concept syllabus, move to the next concept. IF THE LESSON IS ENTIRELY OVER, you MUST generate a final "Overview Quiz" by creating a new sandbox file with a simple coding question (using a purple widget). The user will write the code in the IDE to answer it.`, true);
     }
+  };
+
+  const handleCheckAnswer = (questionText, code) => {
+    handleTutorMessage(`[SYSTEM MESSAGE - DO NOT SHOW TO USER] The user has submitted their code answer for the question: "${questionText}". 
+Evaluate their code. Reply ONLY with an inlineWidgets array containing your feedback. Do NOT output a new sandboxFile. Keep your "message" field completely empty.`, true);
   };
 
   const handleDismissWidget = () => {
@@ -217,9 +222,11 @@ To get started, simply tell me what you'd like to build today! 👇`
     handleTutorMessage(prompt);
   };
 
-  const handleTutorMessage = async (text) => {
-    const newHistory = [...tutorMessages, { role: 'user', content: text }];
-    setTutorMessages(newHistory);
+  const handleTutorMessage = async (text, isHidden = false) => {
+    const displayHistory = isHidden ? tutorMessages : [...tutorMessages, { role: 'user', content: text }];
+    const apiHistory = [...tutorMessages, { role: 'user', content: text }];
+    
+    if (!isHidden) setTutorMessages(displayHistory);
     setIsTutorLoading(true);
 
     try {
@@ -227,7 +234,7 @@ To get started, simply tell me what you'd like to build today! 👇`
       const currentLanguage = activeFile ? activeFile.language : 'general';
       const userProficiency = languageProficiencies[currentLanguage] || 'Beginner';
 
-      const response = await chatWithTutor(geminiKey, ollamaUrl, ollamaModel, newHistory, currentCode, currentLanguage, userProficiency);
+      const response = await chatWithTutor(geminiKey, ollamaUrl, ollamaModel, apiHistory, currentCode, currentLanguage, userProficiency);
       
       // Handle Course Syllabus Generation
       if (response.isCourse && response.concepts && response.concepts.length > 0) {
@@ -257,7 +264,9 @@ To get started, simply tell me what you'd like to build today! 👇`
         }
       }
 
-      setTutorMessages([...newHistory, { role: 'ai', content: response.message }]);
+      if (!isHidden && response.message && response.message.trim() !== '') {
+        setTutorMessages([...displayHistory, { role: 'ai', content: response.message }]);
+      }
       
       // Update tutor commands.
       if (response.inlineWidgets && Array.isArray(response.inlineWidgets) && response.inlineWidgets.length > 0) {
@@ -286,9 +295,10 @@ To get started, simply tell me what you'd like to build today! 👇`
 The user has submitted their self-assessment for the syllabus concepts:
 ${Object.entries(assessments).map(([k, v]) => `- ${k}: ${v}`).join('\n')}
 
-Based on this assessment, please generate the sandbox files for the entire lesson at once using the "sandboxFiles" array, and guide the user through them using "inlineWidgets".
+Based on this assessment, physically map out a lesson plan in order from least proficient ("Never Seen") to most proficient ("Understand").
+Generate the sandbox files for ALL concepts at once in that exact order using the "sandboxFiles" array, and guide the user through them using "inlineWidgets".
 CRITICAL: Do NOT set "isCourse" to true again! The course has already started.`;
-    handleTutorMessage(systemPrompt);
+    handleTutorMessage(systemPrompt, true);
   };
 
   // Deprecated Walkthrough function
@@ -343,7 +353,8 @@ CRITICAL: Do NOT set "isCourse" to true again! The course has already started.`;
         onWalkthroughNext={handleWalkthroughNext}
         onNextWidget={handleNextWidget}
         onDismissWidget={handleDismissWidget}
-        onSendMessage={handleTutorAction}
+        onCheckAnswer={handleCheckAnswer}
+        onSendMessage={handleTutorMessage}
         terminalOutput={terminalOutput}
         onCloseTerminal={() => setTerminalOutput(null)}
       />

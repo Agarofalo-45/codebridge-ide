@@ -203,11 +203,19 @@ export default function EditorArea({
         const renderWidget = () => {
           if (type === 'question') {
             domNode.innerHTML = `
-              <div style="position: relative; height: 100%; display: flex; align-items: flex-end;">
-                <div style="background-color: #673ab7; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 20px; margin-bottom: 8px;">
-                  ? Answer Below
-                  <div style="position: absolute; bottom: 0px; left: 20px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #673ab7;"></div>
+              <div style="background-color: #673ab7; color: white; padding: 12px; border-radius: 8px; font-family: sans-serif; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-top: 5px; position: relative; max-width: 80%; display: flex; flex-direction: column; gap: 10px; z-index: 10;">
+                <div style="font-weight: bold; display: flex; align-items: center; gap: 5px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  AI Tutor Quiz
                 </div>
+                <div style="padding-right: 15px;">${text}</div>
+                <div style="font-size: 11px; opacity: 0.8; font-style: italic;">Write your answer in the code editor, then click Submit Code.</div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 5px; align-items: center;">
+                  <button id="btn-submit" style="background: var(--accent-color, #4CAF50); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; width: 100%;">Submit Code</button>
+                </div>
+                
+                <div style="position: absolute; bottom: -8px; left: 20px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #673ab7;"></div>
               </div>
             `;
           } else {
@@ -244,6 +252,16 @@ export default function EditorArea({
           }
 
           // Attach event listeners dynamically
+          const btnSubmit = domNode.querySelector('#btn-submit');
+          if (btnSubmit && typeof onCheckAnswer === 'function') {
+            btnSubmit.onclick = () => {
+               btnSubmit.innerText = "Checking...";
+               btnSubmit.style.opacity = "0.7";
+               btnSubmit.disabled = true;
+               onCheckAnswer(text, editor.getValue());
+            };
+          }
+
           const btnClose = domNode.querySelector('#btn-close');
           if (btnClose && typeof onDismissWidget === 'function') {
             btnClose.onclick = onDismissWidget;
