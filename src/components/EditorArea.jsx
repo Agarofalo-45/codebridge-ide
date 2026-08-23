@@ -47,7 +47,12 @@ export default function EditorArea({
   isTutorLoading,
   tutorCommands,
   tutorOpenTrigger,
-  onWalkthroughNext
+  onWalkthroughNext,
+  onNextWidget,
+  onDismissWidget,
+  onSendMessage,
+  terminalOutput,
+  onCloseTerminal
 }) {
   const [model] = React.useState(() => Model.fromJson(initialLayout));
   const layoutRef = useRef(null);
@@ -383,14 +388,67 @@ export default function EditorArea({
   };
 
   return (
-    <div className="editor-area" style={{ position: 'relative' }}>
-      <Layout 
-        ref={layoutRef}
-        model={model} 
-        factory={factory} 
-        onAction={onAction}
-        onRenderTabSet={onRenderTabSet}
-      />
+    <div className="editor-area" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ flex: 1, position: 'relative' }}>
+        <Layout 
+          ref={layoutRef}
+          model={model} 
+          factory={factory} 
+          onAction={onAction}
+          onRenderTabSet={onRenderTabSet}
+        />
+      </div>
+
+      {terminalOutput && (
+        <div style={{
+          height: '200px',
+          backgroundColor: '#1e1e1e',
+          borderTop: '1px solid #3c3c3c',
+          display: 'flex',
+          flexDirection: 'column',
+          zIndex: 100,
+          fontFamily: 'monospace'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '5px 15px',
+            backgroundColor: '#252526',
+            borderBottom: '1px solid #3c3c3c',
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            color: '#ccc'
+          }}>
+            <span>Terminal</span>
+            <button onClick={onCloseTerminal} style={{ background: 'none', border: 'none', color: '#ccc', cursor: 'pointer' }}>
+              ✕
+            </button>
+          </div>
+          <div style={{
+            flex: 1,
+            padding: '10px 15px',
+            overflowY: 'auto',
+            color: '#d4d4d4',
+            whiteSpace: 'pre-wrap',
+            fontSize: '13px'
+          }}>
+            {terminalOutput.type === 'info' && <span style={{ color: '#569cd6' }}>{terminalOutput.text}</span>}
+            {terminalOutput.type !== 'info' && (
+              <>
+                <div style={{ color: '#4CAF50', marginBottom: '8px' }}>$ piston run code</div>
+                {terminalOutput.stdout && <div>{terminalOutput.stdout}</div>}
+                {terminalOutput.stderr && <div style={{ color: '#f14c4c' }}>{terminalOutput.stderr}</div>}
+                {terminalOutput.exitCode !== undefined && (
+                  <div style={{ marginTop: '8px', color: '#858585', fontSize: '11px' }}>
+                    Process exited with code {terminalOutput.exitCode}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

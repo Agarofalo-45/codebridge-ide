@@ -7,6 +7,7 @@ import ProficiencyModal from './components/ProficiencyModal';
 import ConceptChecklistModal from './components/ConceptChecklistModal';
 import { translateCode } from './services/ai';
 import { chatWithTutor } from './services/tutor';
+import { executeCode } from './services/piston';
 
 const initialFiles = [
   { id: '1', name: 'main.py', language: 'python', content: `print("Hello World!")` },
@@ -38,6 +39,9 @@ function App() {
   const [latestTranslationId, setLatestTranslationId] = useState(null);
   const [widgetQueue, setWidgetQueue] = useState([]);
   const [activeWidget, setActiveWidget] = useState(null);
+
+  const [terminalOutput, setTerminalOutput] = useState(null);
+  const [isTerminalRunning, setIsTerminalRunning] = useState(false);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [ollamaUrl, setOllamaUrl] = useState(() => localStorage.getItem('ollamaUrl') || 'http://localhost:11434');
@@ -163,6 +167,26 @@ To get started, simply tell me what you'd like to build today! 👇`
       }));
     }
   }, [ollamaUrl, ollamaModel, activeFile, targetLanguage]);
+
+  const handleRunCode = async () => {
+    if (!activeFile) return;
+    setIsTerminalRunning(true);
+    setTerminalOutput({ type: 'info', text: `Running ${activeFile.language} code...` });
+    
+    try {
+      const result = await executeCode(activeFile.language, activeFile.content);
+      setTerminalOutput({
+        type: result.code === 0 ? 'success' : 'error',
+        stdout: result.output,
+        stderr: result.error,
+        exitCode: result.code
+      });
+    } catch (err) {
+      setTerminalOutput({ type: 'error', stderr: err.message });
+    } finally {
+      setIsTerminalRunning(false);
+    }
+  };
 
   const handleOpenTutor = () => {
     setTutorOpenTrigger(Date.now());
@@ -312,6 +336,8 @@ Based on this assessment, please open a sandbox file to teach the first concept 
         onOpenTutor={handleOpenTutor}
         onChangeLanguage={handleChangeLanguage}
         onTutorAction={handleTutorAction}
+        onRunCode={handleRunCode}
+        isTerminalRunning={isTerminalRunning}
       />
       
       <EditorArea 
@@ -331,6 +357,8 @@ Based on this assessment, please open a sandbox file to teach the first concept 
         onNextWidget={handleNextWidget}
         onDismissWidget={handleDismissWidget}
         onSendMessage={handleTutorAction}
+        terminalOutput={terminalOutput}
+        onCloseTerminal={() => setTerminalOutput(null)}
       />
 
       {/* Global Answer Box for Questions */}
