@@ -340,7 +340,7 @@ CRITICAL: Do NOT set "isCourse" to true again! The course has already started.`;
   const handleWalkthroughNext = () => {};
 
   // Derive the active inlineWidget based on the walkthrough state
-  const activeTutorCommands = { ...tutorCommands };
+  const activeTutorCommands = tutorCommands;
 
   useEffect(() => {
     const handleKeyDown = (e) => {

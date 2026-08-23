@@ -337,7 +337,7 @@ export default function EditorArea({
         
         const zoneId = changeAccessor.addZone({
           afterLineNumber: Math.max(1, line - 1),
-          heightInLines: type === 'question' ? 2 : 7,
+          heightInLines: 8,
           domNode: domNode
         });
         activeViewZones.current[activeFileId] = zoneId;
