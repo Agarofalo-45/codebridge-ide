@@ -9,7 +9,8 @@ export async function onRequestPost(context) {
     const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
       messages: [
         { role: 'user', content: prompt }
-      ]
+      ],
+      max_tokens: 2048
     });
 
     return new Response(JSON.stringify({ response: response.response }), {

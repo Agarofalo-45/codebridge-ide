@@ -193,6 +193,9 @@ To get started, simply tell me what you'd like to build today! 👇`
     } else {
       setActiveWidget(null);
       setTutorCommands(prev => ({ ...prev, activeWidget: null }));
+      
+      // Auto-advance the conversation so the AI knows they finished tracing the code
+      handleTutorMessage(`[SYSTEM MESSAGE] The user has completed the interactive widgets for this code. If we are currently following a multi-concept syllabus, please move on to the next concept by generating the next sandbox file and widgets. If the lesson is over, just ask them if they have any questions.`);
     }
   };
 
