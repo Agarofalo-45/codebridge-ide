@@ -235,7 +235,7 @@ Evaluate their code. Reply ONLY with an inlineWidgets array containing your feed
 
   const handleExplainConcept = (conceptText) => {
     handleTutorMessage(`[SYSTEM MESSAGE - DO NOT SHOW TO USER] The user needs you to explain the concept behind this question: "${conceptText}". 
-Please pause the quiz and generate a brand new sandboxFile explicitly dedicated to explaining this concept. Use inlineWidgets to guide them through the new file.`, true);
+CRITICAL: You MUST output a \`sandboxFiles\` array containing a brand new file specifically for explaining this concept, and \`inlineWidgets\` that target this new file to teach it.`, true);
   };
 
   const handleDismissWidget = () => {

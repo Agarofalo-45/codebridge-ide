@@ -50,6 +50,8 @@ export default function EditorArea({
   onWalkthroughNext,
   onNextWidget,
   onDismissWidget,
+  onCheckAnswer,
+  onExplainConcept,
   onSendMessage,
   terminalOutput,
   onCloseTerminal
@@ -61,9 +63,11 @@ export default function EditorArea({
   const editorRefs = useRef({});
   const activeDecorations = useRef({}); 
   const activeViewZones = useRef({});
+  const [mountedEditors, setMountedEditors] = useState(0);
 
   const handleEditorDidMount = (fileId, editor, monaco) => {
     editorRefs.current[fileId] = { editor, monaco };
+    setMountedEditors(prev => prev + 1);
   };
 
   // Sync active file from sidebar to FlexLayout
@@ -222,7 +226,7 @@ export default function EditorArea({
         const renderWidget = () => {
           if (type === 'question') {
             domNode.innerHTML = `
-              <div style="background-color: #673ab7; color: white; padding: 12px; border-radius: 8px; font-family: sans-serif; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-top: 5px; position: relative; max-width: 80%; display: flex; flex-direction: column; gap: 10px; z-index: 10;">
+              <div style="background-color: #673ab7; color: white; padding: 12px; border-radius: 8px; font-family: sans-serif; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-top: 5px; position: relative; max-width: 80%; display: flex; flex-direction: column; gap: 10px; z-index: 10; pointer-events: auto;">
                 <div style="font-weight: bold; display: flex; align-items: center; gap: 5px;">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                   AI Tutor Quiz
@@ -240,7 +244,7 @@ export default function EditorArea({
             `;
           } else {
             domNode.innerHTML = `
-              <div style="background-color: #673ab7; color: white; padding: 12px; border-radius: 8px; font-family: sans-serif; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-top: 5px; position: relative; max-width: 80%; display: flex; flex-direction: column; gap: 10px; z-index: 10;">
+              <div style="background-color: #673ab7; color: white; padding: 12px; border-radius: 8px; font-family: sans-serif; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-top: 5px; position: relative; max-width: 80%; display: flex; flex-direction: column; gap: 10px; z-index: 10; pointer-events: auto;">
                 <button id="btn-close" style="position: absolute; top: 8px; right: 8px; background: none; border: none; color: white; cursor: pointer; opacity: 0.7; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
@@ -270,6 +274,9 @@ export default function EditorArea({
               </div>
             `;
           }
+
+          // Prevent Monaco from swallowing clicks
+          domNode.onmousedown = (e) => e.stopPropagation();
 
           // Attach event listeners dynamically
           const btnSubmit = domNode.querySelector('#btn-submit');
@@ -351,7 +358,7 @@ export default function EditorArea({
       activeDecorations.current[activeFileId] = decs;
     }
 
-  }, [tutorCommands, activeFileId]);
+  }, [tutorCommands, activeFileId, mountedEditors]);
 
   // Keep App state in sync when user clicks a tab
   const onAction = (action) => {
